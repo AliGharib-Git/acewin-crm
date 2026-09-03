@@ -6,7 +6,7 @@ from app.analytics.router import router as analytics_router
 from app.config import settings
 from app.database import Base, SessionLocal, engine
 from app.gamification.badges import sync_badge_catalog
-from app.routers import activities, agent_actions, auth, billing, catalog, companies, contacts, copilot, dashboard, deals, feedback, gamification, kpis, okrs, pipeline, platform_admin, support_requests, tags, tasks, users
+from app.routers import activities, agent_actions, auth, billing, catalog, companies, contacts, copilot, dashboard, deals, feedback, gamification, kpis, okrs, pipeline, platform_admin, sales_leads, support_requests, tags, tasks, users
 
 # SQLite (the zero-setup local/dev path) has no separate migration
 # runner in most quick-start workflows, so it's still fine to
@@ -69,6 +69,7 @@ app.include_router(analytics_router)
 app.include_router(platform_admin.router)
 app.include_router(support_requests.router)
 app.include_router(feedback.router)
+app.include_router(sales_leads.router)
 
 
 @app.get("/api/health", tags=["health"])

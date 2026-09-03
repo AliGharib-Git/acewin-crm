@@ -28,6 +28,7 @@ from app.models import (
     AgentActionLog,
     Organization,
     PublicFeedback,
+    SalesLead,
     SubscriptionStatus,
     SupportRequest,
     SupportRequestStatus,
@@ -44,6 +45,8 @@ from app.schemas import (
     Page,
     PublicFeedbackAdminOut,
     PublicFeedbackAdminUpdate,
+    SalesLeadAdminOut,
+    SalesLeadAdminUpdate,
     SupportRequestAdminOut,
     SupportRequestAdminUpdate,
 )
@@ -323,6 +326,65 @@ def update_feedback(feedback_id: int, payload: PublicFeedbackAdminUpdate, db: Se
     db.commit()
     db.refresh(feedback)
     return _feedback_out(feedback)
+
+
+# --- Requests tab: VIP "Contact sales" leads from the Pricing page ----
+
+
+def _sales_lead_out(lead: SalesLead) -> SalesLeadAdminOut:
+    return SalesLeadAdminOut(
+        id=lead.id,
+        contact_name=lead.contact_name,
+        contact_email=lead.contact_email,
+        contact_phone=lead.contact_phone,
+        company_name=lead.company_name,
+        message=lead.message,
+        status=lead.status.value,
+        admin_reply=lead.admin_reply,
+        created_at=lead.created_at,
+        resolved_at=lead.resolved_at,
+        organization_id=lead.organization_id,
+        organization_name=lead.organization.name if lead.organization else None,
+        user_name=lead.user.full_name if lead.user else None,
+        user_email=lead.user.email if lead.user else None,
+    )
+
+
+@router.get("/sales-leads", response_model=list[SalesLeadAdminOut])
+def list_sales_leads(
+    status: str | None = Query(None, description="Filter by 'open', 'in_progress', or 'resolved'."),
+    db: Session = Depends(get_db),
+):
+    """Every VIP "Contact sales" lead filed from the Pricing page, newest
+    first, across both signed-in admins and anonymous visitors (see
+    app/routers/sales_leads.py) -- the sales-team sibling of
+    list_requests/list_feedback above."""
+    query = db.query(SalesLead)
+    if status:
+        query = query.filter(SalesLead.status == SupportRequestStatus(status))
+    leads = query.order_by(desc(SalesLead.created_at)).all()
+    return [_sales_lead_out(lead) for lead in leads]
+
+
+@router.patch("/sales-leads/{lead_id}", response_model=SalesLeadAdminOut)
+def update_sales_lead(lead_id: int, payload: SalesLeadAdminUpdate, db: Session = Depends(get_db)):
+    """A Platform Admin (or whoever on the sales team follows up) marking
+    a lead in progress/resolved and/or leaving a note. Same resolved_at
+    semantics as update_request/update_feedback above."""
+    lead = db.query(SalesLead).filter(SalesLead.id == lead_id).first()
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Sales lead not found")
+
+    if payload.admin_reply is not None:
+        lead.admin_reply = payload.admin_reply
+    if payload.status is not None:
+        new_status = SupportRequestStatus(payload.status)
+        lead.status = new_status
+        lead.resolved_at = datetime.now(timezone.utc) if new_status == SupportRequestStatus.resolved else None
+
+    db.commit()
+    db.refresh(lead)
+    return _sales_lead_out(lead)
 
 
 @router.get("/actions", response_model=Page)

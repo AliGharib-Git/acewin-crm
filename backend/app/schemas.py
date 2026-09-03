@@ -794,6 +794,52 @@ class PublicFeedbackAdminUpdate(BaseModel):
     admin_reply: str | None = None
 
 
+class SalesLeadCreate(BaseModel):
+    """What the Pricing page's VIP / Enterprise "Contact sales" form
+    submits -- works whether the visitor is signed in or not (see
+    app/routers/sales_leads.py), so no organization_id/user_id here;
+    those are inferred server-side from the caller's own token, if any."""
+
+    contact_name: str = Field(min_length=1, max_length=150)
+    contact_email: EmailStr
+    contact_phone: str | None = Field(default=None, max_length=50)
+    company_name: str | None = Field(default=None, max_length=200)
+    message: str | None = None
+
+
+class SalesLeadOut(BaseModel):
+    """What's returned to the visitor right after they submit -- just
+    confirmation of what was recorded, no cross-tenant/admin fields."""
+
+    id: int
+    status: str
+    created_at: datetime
+
+
+class SalesLeadAdminOut(BaseModel):
+    """The Platform Admin's view in the Requests tab's Sales leads sub-tab."""
+
+    id: int
+    contact_name: str
+    contact_email: str
+    contact_phone: str | None
+    company_name: str | None
+    message: str | None
+    status: str
+    admin_reply: str | None = None
+    created_at: datetime
+    resolved_at: datetime | None = None
+    organization_id: int | None
+    organization_name: str | None
+    user_name: str | None
+    user_email: str | None
+
+
+class SalesLeadAdminUpdate(BaseModel):
+    status: str | None = Field(default=None, pattern="^(open|in_progress|resolved)$")
+    admin_reply: str | None = None
+
+
 class PlatformAgentActionLogOut(BaseModel):
     """AgentActionLog rows for the Platform Admin's cross-tenant "Requests"
     tab -- same shape as AgentActionLogOut, plus which org/user it came

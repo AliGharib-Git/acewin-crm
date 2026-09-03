@@ -7,6 +7,7 @@ import type {
   PlatformFeedback,
   PlatformOrganization,
   PlatformOrganizationDetail,
+  PlatformSalesLead,
   PlatformSupportRequest,
   SubscriptionStatus,
   SupportRequestStatus,
@@ -58,6 +59,16 @@ export const platformAdminApi = {
 
   updateFeedback: (feedbackId: number, payload: { status?: SupportRequestStatus; admin_reply?: string }) =>
     client.patch<PlatformFeedback>(`/api/platform-admin/feedback/${feedbackId}`, payload).then((r) => r.data),
+
+  // Sales leads sub-tab: VIP / Enterprise "Contact sales" requests filed
+  // from the Pricing page (see app/routers/sales_leads.py).
+  listSalesLeads: (status?: SupportRequestStatus) =>
+    client
+      .get<PlatformSalesLead[]>("/api/platform-admin/sales-leads", { params: status ? { status } : undefined })
+      .then((r) => r.data),
+
+  updateSalesLead: (leadId: number, payload: { status?: SupportRequestStatus; admin_reply?: string }) =>
+    client.patch<PlatformSalesLead>(`/api/platform-admin/sales-leads/${leadId}`, payload).then((r) => r.data),
 
   listActions: (params?: { organization_id?: number; source?: string; page?: number; page_size?: number }) =>
     client.get<Page<PlatformActionLog>>("/api/platform-admin/actions", { params }).then((r) => r.data),

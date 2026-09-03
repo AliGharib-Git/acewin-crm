@@ -115,6 +115,20 @@ def change_subscription_plan(
             status_code=400,
             detail=f"The {target_definition.name_en} plan isn't available yet.",
         )
+    if target_definition.monthly_price_toman is None:
+        # Same belt-and-suspenders reasoning for a custom/contact-sales
+        # plan (VIP): the Pricing page only ever shows a "Contact sales"
+        # CTA for one of these (see app/routers/sales_leads.py), never a
+        # self-serve switch button -- but the API must refuse a direct
+        # switch too, or that UI-only gate would be the only thing
+        # stopping it. Provisioning a custom-priced plan is a Platform
+        # Admin action instead (update_organization_subscription in
+        # app/routers/platform_admin.py), once sales has actually agreed
+        # a price with the org.
+        raise HTTPException(
+            status_code=400,
+            detail=f"The {target_definition.name_en} plan has custom pricing -- contact sales instead of switching directly.",
+        )
 
     subscription = get_or_create(db, org)
     change_plan(db, subscription, payload.plan, payload.billing_cycle)

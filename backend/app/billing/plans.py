@@ -38,7 +38,7 @@ class PlanDefinition:
     name_fa: str
     tagline_en: str
     tagline_fa: str
-    monthly_price_toman: int | None  # None = custom/contact-sales pricing (no plan currently uses this -- Customized is handled outside the plan model, see pricing.enterpriseCta)
+    monthly_price_toman: int | None  # None = custom/contact-sales pricing (VIP; fully bespoke "Customized" deployments beyond VIP are still handled outside the plan model, see pricing.enterpriseCta)
     yearly_price_toman: int | None  # per year, already discounted vs. 12x monthly
     features: set[str] = field(default_factory=set)
     limits: dict[str, int | None] = field(default_factory=dict)  # None = unlimited
@@ -64,16 +64,23 @@ _VIP_FEATURES = _PRO_FEATURES | {
     "deployment.custom",
 }
 
-# Pricing (updated Sep 1 2026 per founders' decision):
+# Pricing (updated Sep 3 2026 per founders' decision):
 #   - BASIC: 2,600,000 Toman/month flat, up to 3 users.
 #   - PRO: 9,600,000 Toman/month flat (not per-seat), up to 15 users.
-#   - VIP: 15,600,000 Toman/month flat, self-serve -- no longer
-#     coming_soon. Custom/bespoke deployments beyond VIP are handled
-#     as a separate "Customized" conversation with the sales team
-#     (see pricing.enterpriseTitle / pricing.enterpriseCta on the
-#     Pricing page), not through this plan's own pricing.
+#   - VIP: custom/contact-sales pricing (monthly_price_toman=None), NOT
+#     self-serve. An org no longer switches itself onto VIP from the
+#     Pricing page; instead the CTA files a real sales lead (see
+#     app/routers/sales_leads.py) that reaches the sales team, who
+#     negotiate price and provision the plan by hand (Platform Admin ->
+#     app/routers/platform_admin.py's update_organization_subscription).
+#     app/routers/billing.py's change_subscription_plan rejects a direct
+#     self-serve switch onto a custom-pricing plan for the same reason it
+#     rejects one onto a coming_soon plan -- a UI-only gate isn't a real
+#     gate. Fully bespoke deployments beyond VIP are still handled as a
+#     separate "Customized" conversation (pricing.enterpriseTitle /
+#     pricing.enterpriseCta on the Pricing page).
 # Yearly prices are 10x the monthly rate (2 months free vs. paying
-# monthly every month), consistent across all three plans.
+# monthly every month) for the two plans that still have a monthly rate.
 PLAN_DEFINITIONS: dict[SubscriptionPlan, PlanDefinition] = {
     SubscriptionPlan.basic: PlanDefinition(
         plan=SubscriptionPlan.basic,
@@ -117,8 +124,10 @@ PLAN_DEFINITIONS: dict[SubscriptionPlan, PlanDefinition] = {
         name_fa="سازمانی",
         tagline_en="For organizations with custom needs",
         tagline_fa="برای سازمان‌ها",
-        monthly_price_toman=15_600_000,
-        yearly_price_toman=156_000_000,  # 2 months free vs. paying monthly
+        # Custom/contact-sales pricing: no self-serve monthly figure any
+        # more. See this module's pricing comment above.
+        monthly_price_toman=None,
+        yearly_price_toman=None,
         features=_VIP_FEATURES,
         limits={
             "users": None,
@@ -128,11 +137,11 @@ PLAN_DEFINITIONS: dict[SubscriptionPlan, PlanDefinition] = {
             "ai_requests_per_month": 10_000,  # generous, not "unlimited" -- an actual API cost sits behind this one
             "storage_mb": 50_000,
         },
-        # VIP now has a real, self-serve monthly price -- no longer
-        # coming_soon. Fully bespoke deployments are sold separately
-        # as "Customized", through the sales-contact flow on the
-        # Pricing page (pricing.enterpriseTitle / enterpriseCta),
-        # not through this plan.
+        # Not "coming soon" -- VIP is real and sellable today, just not
+        # through a self-serve price. coming_soon=False is what lets the
+        # Pricing page render its normal card (with the contact-sales CTA,
+        # since is_custom_pricing derives from monthly_price_toman above)
+        # instead of a disabled "coming soon" one.
         coming_soon=False,
     ),
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { ShieldCheck, ShieldOff, Settings2, Building2, Inbox, History, MessageSquare } from "lucide-react";
+import { ShieldCheck, ShieldOff, Settings2, Building2, Inbox, History, MessageSquare, Star } from "lucide-react";
 import { Card, Button, Input, Select, Textarea, PageSpinner, StatusBadge, Badge, Modal } from "../components/ui";
 import { platformAdminApi } from "../api/platformAdmin";
 import { errorMessage } from "../api/client";
@@ -10,6 +10,7 @@ import type {
   PlanTier,
   PlatformFeedback,
   PlatformOrganization,
+  PlatformSalesLead,
   PlatformSupportRequest,
   SubscriptionStatus,
   SupportRequestStatus,
@@ -367,10 +368,137 @@ function FeedbackTab() {
   );
 }
 
+function SalesLeadReplyModal({ lead, onClose }: { lead: PlatformSalesLead; onClose: () => void }) {
+  const { language } = useLanguage();
+  const fa = language === "fa";
+  const queryClient = useQueryClient();
+  const [reply, setReply] = useState(lead.admin_reply ?? "");
+  const [status, setStatus] = useState<SupportRequestStatus>(lead.status);
+
+  const mutation = useMutation({
+    mutationFn: () => platformAdminApi.updateSalesLead(lead.id, { status, admin_reply: reply }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["platform-admin-sales-leads"] });
+      toast.success(fa ? "ذخیره شد" : "Saved");
+      onClose();
+    },
+    onError: (err) => toast.error(errorMessage(err)),
+  });
+
+  return (
+    <Modal open onClose={onClose} title={`${fa ? "سرنخ VIP" : "VIP lead"} — ${lead.contact_name}`} size="md">
+      <div className="space-y-4">
+        <div className="rounded border border-border p-3 text-sm">
+          <div className="mb-1 text-xs text-muted">
+            {lead.contact_email}
+            {lead.contact_phone ? ` · ${lead.contact_phone}` : ""}
+            {lead.company_name ? ` · ${lead.company_name}` : ""}
+          </div>
+          {lead.organization_name && (
+            <div className="mb-1 text-xs text-muted">
+              {fa ? "سازمان" : "Organization"}: {lead.organization_name} ({lead.user_name})
+            </div>
+          )}
+          <p className="whitespace-pre-wrap text-ink">{lead.message || (fa ? "(بدون پیام)" : "(no message)")}</p>
+        </div>
+        <Select label={fa ? "وضعیت" : "Status"} value={status} onChange={(e) => setStatus(e.target.value as SupportRequestStatus)}>
+          <option value="open">{fa ? "در انتظار" : "Open"}</option>
+          <option value="in_progress">{fa ? "در حال پیگیری" : "In progress"}</option>
+          <option value="resolved">{fa ? "پیگیری شد" : "Resolved"}</option>
+        </Select>
+        <Textarea
+          label={fa ? "یادداشت داخلی تیم فروش" : "Internal sales note"}
+          rows={4}
+          value={reply}
+          onChange={(e) => setReply(e.target.value)}
+          placeholder={fa ? "مثلاً: تماس گرفته شد، منتظر پاسخ..." : "e.g. Called, waiting to hear back..."}
+        />
+        <Button isLoading={mutation.isPending} onClick={() => mutation.mutate()}>
+          {fa ? "ذخیره" : "Save"}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+function SalesLeadsTab() {
+  const { language } = useLanguage();
+  const fa = language === "fa";
+  const [statusFilter, setStatusFilter] = useState<SupportRequestStatus | "">("");
+  const [replying, setReplying] = useState<PlatformSalesLead | null>(null);
+
+  const { data: leads, isLoading } = useQuery({
+    queryKey: ["platform-admin-sales-leads", statusFilter],
+    queryFn: () => platformAdminApi.listSalesLeads(statusFilter || undefined),
+  });
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted">
+        {fa
+          ? "کسانی که روی «تماس با فروش» در پلن VIP/سازمانی کلیک کرده‌اند، اینجا لیست می‌شوند و همزمان به ایمیل ادمین/تیم فروش هم ارسال شده است."
+          : "Everyone who clicked \"Contact sales\" on the VIP / Enterprise plan shows up here, and was already emailed to the admin/sales team."}
+      </p>
+      <Select className="w-56" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as SupportRequestStatus | "")}>
+        <option value="">{fa ? "همه وضعیت‌ها" : "All statuses"}</option>
+        <option value="open">{fa ? "در انتظار" : "Open"}</option>
+        <option value="in_progress">{fa ? "در حال پیگیری" : "In progress"}</option>
+        <option value="resolved">{fa ? "پیگیری شد" : "Resolved"}</option>
+      </Select>
+
+      {isLoading ? (
+        <PageSpinner />
+      ) : !leads || leads.length === 0 ? (
+        <p className="text-sm text-muted">{fa ? "هنوز سرنخی ثبت نشده است." : "No sales leads filed yet."}</p>
+      ) : (
+        <Card className="overflow-x-auto p-0">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-start text-xs uppercase tracking-wide text-muted">
+                <th className="px-4 py-3 text-start">{fa ? "مخاطب" : "Contact"}</th>
+                <th className="px-4 py-3 text-start">{fa ? "شرکت / سازمان" : "Company / org"}</th>
+                <th className="px-4 py-3 text-start">{fa ? "پیام" : "Message"}</th>
+                <th className="px-4 py-3 text-start">{fa ? "وضعیت" : "Status"}</th>
+                <th className="px-4 py-3 text-start">{fa ? "تاریخ" : "Date"}</th>
+                <th className="px-4 py-3 text-start">{fa ? "عملیات" : "Actions"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leads.map((lead) => (
+                <tr key={lead.id} className="border-b border-border/60 last:border-0">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-ink">{lead.contact_name}</div>
+                    <div className="text-xs text-muted">{lead.contact_email}</div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted">
+                    {lead.company_name ?? lead.organization_name ?? "-"}
+                  </td>
+                  <td className="max-w-xs truncate px-4 py-3">{lead.message ?? "-"}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge value={lead.status} />
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted">{new Date(lead.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3">
+                    <Button variant="secondary" size="sm" onClick={() => setReplying(lead)}>
+                      {fa ? "پیگیری" : "Follow up"}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {replying && <SalesLeadReplyModal lead={replying} onClose={() => setReplying(null)} />}
+    </div>
+  );
+}
+
 function RequestsTab() {
   const { language } = useLanguage();
   const fa = language === "fa";
-  const [subTab, setSubTab] = useState<"requests" | "feedback" | "actions">("requests");
+  const [subTab, setSubTab] = useState<"requests" | "feedback" | "sales" | "actions">("requests");
   const [statusFilter, setStatusFilter] = useState<SupportRequestStatus | "">("");
   const [replying, setReplying] = useState<PlatformSupportRequest | null>(null);
 
@@ -408,6 +536,15 @@ function RequestsTab() {
           {fa ? "نظرات و انتقادات" : "Feedback"}
         </button>
         <button
+          onClick={() => setSubTab("sales")}
+          className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium ${
+            subTab === "sales" ? "border-primary text-primary" : "border-transparent text-muted hover:text-ink"
+          }`}
+        >
+          <Star className="h-4 w-4" />
+          {fa ? "سرنخ‌های VIP" : "Sales leads"}
+        </button>
+        <button
           onClick={() => setSubTab("actions")}
           className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium ${
             subTab === "actions" ? "border-primary text-primary" : "border-transparent text-muted hover:text-ink"
@@ -419,6 +556,8 @@ function RequestsTab() {
       </div>
 
       {subTab === "feedback" && <FeedbackTab />}
+
+      {subTab === "sales" && <SalesLeadsTab />}
 
       {subTab === "requests" && (
         <div className="space-y-3">

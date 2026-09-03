@@ -883,6 +883,49 @@ class SupportRequest(Base):
     user: Mapped["User"] = relationship()
 
 
+class SalesLead(Base):
+    """A "Contact sales" request filed from the Pricing page's VIP /
+    Enterprise plan card (see frontend src/pages/Pricing.tsx). VIP is
+    custom/contact-sales pricing (app/billing/plans.py) rather than a
+    self-serve checkout, so this is what that plan's CTA actually does:
+    file a real, trackable lead instead of opening a bare mailto: link.
+
+    Works for both a signed-in org admin (organization_id/user_id set)
+    and an anonymous visitor who hasn't signed up yet (both nullable) --
+    the Pricing page is public, like PublicFeedback's own homepage form.
+
+    Same two-destinations design as SupportRequest/PublicFeedback: every
+    submission lands in this table (read cross-tenant in the Platform
+    Admin panel's Requests tab -- see app/routers/platform_admin.py) and
+    triggers an admin/sales notification email (app/email.py) the moment
+    it's filed. Reuses SupportRequestStatus for the same
+    open -> in_progress -> resolved lifecycle and reply shape rather than
+    inventing a parallel one.
+    """
+
+    __tablename__ = "sales_leads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(
+        ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    contact_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    contact_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    company_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[SupportRequestStatus] = mapped_column(
+        Enum(SupportRequestStatus), default=SupportRequestStatus.open, nullable=False, index=True
+    )
+    admin_reply: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime(), server_default=func.now(), index=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(TZDateTime(), nullable=True)
+
+    organization: Mapped["Organization | None"] = relationship()
+    user: Mapped["User | None"] = relationship()
+
+
 class PublicFeedbackCategory(str, enum.Enum):
     suggestion = "suggestion"
     complaint = "complaint"

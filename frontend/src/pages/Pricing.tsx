@@ -4,10 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Check, ChevronDown, Minus, Phone, Rocket } from "lucide-react";
 import { billingApi } from "../api/billing";
+import { salesLeadsApi } from "../api/salesLeads";
 import { errorMessage } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
-import { Button, Card, Spinner } from "../components/ui";
+import { Button, Card, Input, Modal, Spinner, Textarea } from "../components/ui";
 import { PublicHeader, PublicFooter } from "../components/PublicNav";
 import type { Plan, PlanTier, BillingCycle } from "../types";
 
@@ -60,6 +61,7 @@ function PlanCard({
   isAuthenticated,
   onSwitch,
   isSwitching,
+  onRequestVip,
 }: {
   plan: Plan;
   cycle: BillingCycle;
@@ -67,6 +69,7 @@ function PlanCard({
   isAuthenticated: boolean;
   onSwitch: (plan: PlanTier) => void;
   isSwitching: boolean;
+  onRequestVip: () => void;
 }) {
   const { t, language } = useLanguage();
   const isPro = plan.plan === "pro";
@@ -131,11 +134,9 @@ function PlanCard({
             {t("pricing.ctaCurrent")}
           </Button>
         ) : plan.is_custom_pricing ? (
-          <a href="mailto:acewingroup5@gmail.com?subject=ACEWIN%20VIP%20/%20Enterprise" className="block">
-            <Button variant="secondary" className="w-full justify-center">
-              {t("pricing.ctaVip")}
-            </Button>
-          </a>
+          <Button variant="secondary" className="w-full justify-center" onClick={onRequestVip}>
+            {t("pricing.ctaVip")}
+          </Button>
         ) : !isAuthenticated ? (
           <Link to="/register">
             <Button variant={isPro ? "primary" : "secondary"} className="w-full justify-center">
@@ -245,11 +246,94 @@ function FaqAccordion() {
   );
 }
 
+function VipContactModal({
+  open,
+  onClose,
+  defaultName,
+  defaultEmail,
+}: {
+  open: boolean;
+  onClose: () => void;
+  defaultName?: string;
+  defaultEmail?: string;
+}) {
+  const { t } = useLanguage();
+  const [name, setName] = useState(defaultName ?? "");
+  const [email, setEmail] = useState(defaultEmail ?? "");
+  const [phone, setPhone] = useState("");
+  const [company, setCompany] = useState("");
+  const [message, setMessage] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      salesLeadsApi.create({
+        contact_name: name,
+        contact_email: email,
+        contact_phone: phone || null,
+        company_name: company || null,
+        message: message || null,
+      }),
+    onSuccess: () => {
+      toast.success(t("pricing.vipFormSuccess"));
+      setPhone("");
+      setCompany("");
+      setMessage("");
+      onClose();
+    },
+    onError: (err) => toast.error(errorMessage(err)),
+  });
+
+  function submit() {
+    if (!name.trim() || !email.trim()) return;
+    mutation.mutate();
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t("pricing.vipModalTitle")}
+      size="sm"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button isLoading={mutation.isPending} onClick={submit}>
+            {t("pricing.vipFormSubmit")}
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-muted">{t("pricing.vipModalDesc")}</p>
+      <div className="mt-4 space-y-3">
+        <Input label={t("pricing.vipFormName")} value={name} onChange={(e) => setName(e.target.value)} required />
+        <Input
+          label={t("pricing.vipFormEmail")}
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Input label={t("pricing.vipFormPhone")} value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <Input label={t("pricing.vipFormCompany")} value={company} onChange={(e) => setCompany(e.target.value)} />
+        <Textarea
+          label={t("pricing.vipFormMessage")}
+          rows={3}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+        />
+      </div>
+    </Modal>
+  );
+}
+
 export default function Pricing() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  const [vipModalOpen, setVipModalOpen] = useState(false);
 
   const { data: plans, isLoading } = useQuery({
     queryKey: ["billing", "plans", !!user],
@@ -330,6 +414,7 @@ export default function Pricing() {
                   }
                 }}
                 isSwitching={switchMutation.isPending}
+                onRequestVip={() => setVipModalOpen(true)}
               />
             ))}
           </div>
@@ -390,6 +475,13 @@ export default function Pricing() {
           </a>
         </div>
       </main>
+
+      <VipContactModal
+        open={vipModalOpen}
+        onClose={() => setVipModalOpen(false)}
+        defaultName={user?.full_name}
+        defaultEmail={user?.email}
+      />
 
       <PublicFooter />
     </div>

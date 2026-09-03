@@ -570,6 +570,25 @@ export interface PlatformFeedback {
   resolved_at: string | null;
 }
 
+// --- Sales leads (VIP "Contact sales" requests from the Pricing page) ---
+
+export interface PlatformSalesLead {
+  id: number;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string | null;
+  company_name: string | null;
+  message: string | null;
+  status: SupportRequestStatus;
+  admin_reply: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  organization_id: number | null;
+  organization_name: string | null;
+  user_name: string | null;
+  user_email: string | null;
+}
+
 export interface PlatformActionLog {
   id: number;
   tool_name: string;
