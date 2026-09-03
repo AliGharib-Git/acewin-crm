@@ -1,0 +1,32 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+.venv/
+venv/
+env/
+
+.env
+.env.*
+!.env.example
+
+*.db
+*.sqlite
+*.sqlite3
+crm.db
+
+# Local Olist dataset + feature cache: supplied at runtime via a bind
+# mount / named volume (see docker-compose.yml), never baked into the image.
+data/olist/*
+data/_cache/*
+!data/.gitkeep
+
+.git/
+.gitignore
+.idea/
+.vscode/
+*.md

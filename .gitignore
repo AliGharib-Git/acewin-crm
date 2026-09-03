@@ -1,0 +1,39 @@
+# ── Secrets / environment ──────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python (backend) ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Node / Vite (frontend) ──────────────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+*.local
+*.tsbuildinfo
+.vite/
+
+# ── Large / user-supplied data & caches (kept out of git on purpose —
+#    see docker-compose.yml comment: dropped in locally, volume-mounted) ──
+backend/data/olist/
+backend/data/_cache/
+
+# ── Editor / OS ──────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*

@@ -1,0 +1,168 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display;
+  }
+
+  /*
+   * Persian / RTL font override — applied to every page.
+   * Newsreader (headings) and IBM Plex Sans (body) only cover Latin/Greek/
+   * Cyrillic, so with no override Persian text silently falls back to the
+   * OS default font. That fallback is where Safari (macOS + iOS) diverges
+   * most from Chrome/Firefox — weights, letter joining and digit shapes can
+   * all render inconsistently. Vazirmatn is loaded as static per-weight
+   * woff2 files specifically to avoid Safari's known quirks with variable
+   * fonts, so we force it in whenever <html dir="rtl"> is set (see
+   * LanguageContext, which sets this on every language switch).
+   */
+  html[dir="rtl"] body,
+  html[dir="rtl"] .font-sans,
+  html[dir="rtl"] .font-display {
+    font-family: "Vazirmatn", "Tahoma", ui-sans-serif, system-ui, sans-serif;
+    /* Safari sometimes synthesizes bold/oblique for glyphs it thinks are
+       missing a weight; Vazirmatn ships real weights 100-900, so turn that
+       off to avoid doubled-up, blurry-looking Persian text. */
+    font-synthesis: none;
+  }
+
+  html[dir="rtl"] {
+    font-feature-settings: "ss01" off;
+  }
+
+  ::selection {
+    @apply bg-primary/30 text-ink;
+  }
+
+  *:focus-visible {
+    outline: 2px solid #14D9A6;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #16262A;
+    border-radius: 8px;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(20, 217, 166, 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(20, 217, 166, 0.06) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+
+  .bg-mesh {
+    background-image:
+      radial-gradient(38% 45% at 12% 8%, rgba(20, 217, 166, 0.18), transparent 60%),
+      radial-gradient(45% 50% at 92% 12%, rgba(34, 240, 194, 0.16), transparent 60%),
+      radial-gradient(40% 45% at 50% 100%, rgba(20, 217, 166, 0.12), transparent 60%);
+  }
+
+  .text-gradient {
+    background-image: linear-gradient(90deg, #0FAE86, #14D9A6 45%, #22F0C2);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .mask-fade-x {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  }
+
+  /* Cursor-tracking ambient glow. --mx/--my (0-100%) are set from JS on
+     pointer move; falls back to a fixed position (harmless) on touch
+     devices where no pointermove fires. */
+  .spotlight {
+    --mx: 50%;
+    --my: 35%;
+  }
+  .spotlight::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      520px circle at var(--mx) var(--my),
+      rgba(20, 217, 166, 0.20),
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .spotlight:hover::before {
+    opacity: 1;
+  }
+
+  /* 3D tilt card: perspective + rotation set from JS via --rx/--ry. */
+  .tilt-card {
+    --rx: 0deg;
+    --ry: 0deg;
+    transform: perspective(1000px) rotateX(var(--rx)) rotateY(var(--ry));
+    transition: transform 0.15s ease-out;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+  .tilt-card.tilt-resting {
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+/* Scroll-reveal: elements start hidden and are flipped to visible via
+   the .in-view class (added by an IntersectionObserver hook). Respects
+   prefers-reduced-motion via the global override below. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Bouncier alternative to .reveal, used where a little more energy fits
+   (e.g. the homepage stat counters). */
+.reveal-pop {
+  opacity: 0;
+  transform: scale(0.55);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.reveal-pop.in-view {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
