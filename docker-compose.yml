@@ -55,7 +55,9 @@ services:
       # survives container restarts/rebuilds too.
       - ./backend/data:/app/data
     ports:
-      - "${BACKEND_HOST_PORT:-8000}:8000"
+      # Production: bind only to loopback. The host Nginx reverse proxy is
+      # the sole public entry point; Docker must not publish the API itself.
+      - "${BACKEND_HOST_BIND:-127.0.0.1}:${BACKEND_HOST_PORT:-8000}:8000"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
       interval: 30s
@@ -75,7 +77,9 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "${FRONTEND_HOST_PORT:-8080}:80"
+      # Production: bind only to loopback. Host Nginx terminates TLS and
+      # proxies traffic here.
+      - "${FRONTEND_HOST_BIND:-127.0.0.1}:${FRONTEND_HOST_PORT:-8080}:80"
     networks: [acewin]
 
   # One-off seeding, e.g.:
